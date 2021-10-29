@@ -1,9 +1,10 @@
 ################################## Parameter Definition And Check ##########################################
-#override GIT_VERSION    		= $(shell git rev-parse --abbrev-ref HEAD)${CUSTOM} $(shell git rev-parse HEAD)
-override GIT_VERSION    		= $(shell git symbolic-ref HEAD | cut -b 12-`-`git rev-parse HEAD)
-override GIT_COMMIT     		= $(shell git rev-parse HEAD)
-override PROJECT_NAME 			= ImprisonSlowSQL
-override LDFLAGS 				= -ldflags "-X 'main.version=\"${GIT_VERSION}\"'"
+PKG 						    = "$(PROJECT_NAME)"
+PROJECT_NAME 				    = ImprisonSlowSQL
+buildDate 						= $(shell TZ=Asia/Shanghai date +%FT%T%z)
+
+override GIT_COMMIT     		= $(shell git rev-parse --short HEAD || echo "GitNotFound")
+override VERSION_DIR 			= ImprisonSlowSQL/pkg/version
 override GOOS           		= linux
 override OS_VERSION 			= el7
 override GOARCH         		= amd64
@@ -11,16 +12,8 @@ override RPMBUILD_TARGET		= x86_64
 override RELEASE 				= qa
 override GO_BUILD_FLAGS 		= -mod=vendor
 override GO_BUILD_TAGS			= dummyhead
-
-# Two cases:
-# 1. if there is tag on current commit, means that 
-# 	 we release new version on current branch just now. 
-#    Set rpm name with tag name(v1.2109.0 -> 1.2109.0).
-#
-# 2. if there is no tag on current commit, means that
-#    current branch is on process.
-#    Set rpm name with current branch name(release-1.2109.x-ee or release-1.2109.x -> 1.2109.x).
-PROJECT_VERSION = $(shell if [ "$$(git tag --points-at HEAD | tail -n1)" ]; then git tag --points-at HEAD | tail -n1 | sed 's/v\(.*\)/\1/'; else git rev-parse --abbrev-ref HEAD | sed 's/release-\(.*\)/\1/' | tr '-' '\n' | head -n1; fi)
+override PROJECT_VERSION		= $(shell cat VERSION | grep 'version' | awk -F ' ' '{print $$2}' | awk '{gsub(/ /,"")}1')
+override LDFLAGS 				= "-X \"${VERSION_DIR}.version=${PROJECT_VERSION}\" -X \"${VERSION_DIR}.gitTag=${gitTag}\" -X \"${VERSION_DIR}.buildDate=${buildDate}\" -X \"${VERSION_DIR}.gitCommit=${gitCommit}\""
 
 ## Dynamic Parameter
 GO_COMPILER_IMAGE ?= golang:1.16
@@ -28,6 +21,12 @@ RPM_BUILD_IMAGE ?= rpmbuild/centos7
 
 ## Static Parameter, should not be overwrite
 GOBIN = ${shell pwd}/bin
+
+# init environment variables
+export PATH        := $(shell go env GOPATH)/bin:$(PATH)
+export GOPATH      := $(shell go env GOPATH)
+export GO111MODULE := on
+
 
 default: install
 ######################################## Code Check ####################################################
@@ -43,10 +42,23 @@ clean:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go clean	
 
 install:
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GO_BUILD_FLAGS) ${LDFLAGS} -tags $(GO_BUILD_TAGS) -o $(GOBIN)/main ./cmd/main.go
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GO_BUILD_FLAGS) -ldflags ${LDFLAGS} -tags $(GO_BUILD_TAGS) -o $(GOBIN)/$(PROJECT_NAME) ./cmd/main.go
 
 build: clean
 	go mod tidy && go mod vendor
+
+debug: install
+	./cmd/$(PROJECT_NAME) -h 192.168.0.1 -p 12345
+
+.PHONY: dlv-build
+dlv-build:
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GO_BUILD_FLAGS) -ldflags ${LDFLAGS} -tags $(GO_BUILD_TAGS) -gcflags "all=-N -l" -o $(GOBIN)/$(PROJECT_NAME) ./cmd/main.go
+
+.PHONY: dlv
+# make dlv 远程调试
+dlv: dlv-build
+	cd ./cmd && dlv debug --headless --listen=:2345 --api-version=2 -- -i 192.168.1.1 -p 123
+
 
 .PHONY: help
 help:
