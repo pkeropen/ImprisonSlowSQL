@@ -1,4 +1,4 @@
-package imprison
+package internal
 
 const LogLevel = "debug"
 

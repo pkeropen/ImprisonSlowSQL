@@ -1,7 +1,7 @@
 package main
 
 import (
-	im "ImprisonSlowSQL/imprison"
+	im "ImprisonSlowSQL/internal"
 	"ImprisonSlowSQL/pkg/utils"
 	v "ImprisonSlowSQL/pkg/version"
 	"errors"
@@ -52,11 +52,12 @@ func main() {
 	}
 
 	slowSQL := &im.ImprisonSlowSQL{
-		Ch: make(chan struct{}),
+		Ch:    make(chan struct{}),
+		Flags: flags,
 	}
 
 	go func() {
-		slowSQL.Imprison(flags)
+		slowSQL.Imprison()
 	}()
 
 	select {

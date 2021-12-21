@@ -1,4 +1,4 @@
-package imprison
+package internal
 
 import (
 	"ImprisonSlowSQL/pkg/utils"

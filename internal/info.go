@@ -1,4 +1,4 @@
-package imprison
+package internal
 
 type Flags struct {
 	Host       string

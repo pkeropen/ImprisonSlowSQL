@@ -57,7 +57,7 @@ dlv-build:
 .PHONY: dlv
 # make dlv 远程调试
 dlv: dlv-build
-	cd ./cmd && dlv debug --headless --listen=:2345 --api-version=2 -- -i 192.168.1.1 -p 123
+	cd ./cmd && dlv debug --headless --listen=:2345 --api-version=2 -- -i 127.0.0.1 -p 58_v29rC -d shop-fstv
 
 
 .PHONY: help
